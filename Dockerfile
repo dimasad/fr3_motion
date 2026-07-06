@@ -1,5 +1,7 @@
 FROM docker.io/library/ros:jazzy-ros-base
 
+LABEL org.opencontainers.image.source https://github.com/dimasad/fr3_motion
+
 RUN <<EOF
 set -e
 
