@@ -1,0 +1,15 @@
+services:
+  dev:
+    image: ghcr.io/dimasad/fr3_motion:latest
+    privileged: true
+    restart: no
+    network_mode: host
+    volumes:
+      - .:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - $HOME/.Xauthority:/root/.Xauthority:ro
+    environment:
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_cyclonedds_cpp}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - DISPLAY
+    command: sleep infinity
