@@ -1,0 +1,26 @@
+<library path="fr3_motion_controllers">
+    <class name="fr3_motion/JointImpedanceController"
+           type="fr3_motion::JointImpedanceController" base_class_type="controller_interface::ControllerInterface">
+        <description>
+            Joint impedance controller that tracks a joint position setpoint received on the
+            "joint_state_setpoint" topic. Based on franka_example_controllers'
+            joint_impedance_example_controller.
+        </description>
+    </class>
+    <class name="fr3_motion/CartesianPoseController"
+           type="fr3_motion::CartesianPoseController" base_class_type="controller_interface::ControllerInterface">
+        <description>
+            Cartesian pose controller that tracks an end-effector pose setpoint received on the
+            "ee_pose_setpoint" topic. Based on franka_example_controllers'
+            cartesian_pose_example_controller.
+        </description>
+    </class>
+    <class name="fr3_motion/JointImpedanceWithIKController"
+           type="fr3_motion::JointImpedanceWithIKController" base_class_type="controller_interface::ControllerInterface">
+        <description>
+            Joint impedance controller with inverse kinematics that tracks an end-effector pose
+            setpoint received on the "ee_pose_setpoint" topic. Based on
+            franka_example_controllers' joint_impedance_with_ik_example_controller.
+        </description>
+    </class>
+</library>

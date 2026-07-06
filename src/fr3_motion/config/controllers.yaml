@@ -1,0 +1,76 @@
+# Namespace-agnostic controller_manager configuration for fr3_motion's practical
+# controllers. Pass this file as franka_bringup/launch/franka.launch.py's
+# `controllers_yaml` argument to make these controller types available, e.g.:
+#
+#   ros2 launch franka_bringup franka.launch.py \
+#       robot_type:=fr3 use_fake_hardware:=true \
+#       controllers_yaml:=<path-to-this-file>
+#   ros2 control load_controller --set-state active joint_impedance_controller
+
+/**:
+  controller_manager:
+    ros__parameters:
+      update_rate: 1000
+      thread_priority: 98
+      overruns:
+        manage: false
+        print_warnings: false
+
+      joint_state_broadcaster:
+        type: joint_state_broadcaster/JointStateBroadcaster
+
+      joint_impedance_controller:
+        type: fr3_motion/JointImpedanceController
+
+      cartesian_pose_controller:
+        type: fr3_motion/CartesianPoseController
+
+      joint_impedance_with_ik_controller:
+        type: fr3_motion/JointImpedanceWithIKController
+
+/**:
+  joint_impedance_controller:
+    ros__parameters:
+      setpoint_timeout: .inf
+      k_gains:
+        - 24.0
+        - 24.0
+        - 24.0
+        - 24.0
+        - 10.0
+        - 6.0
+        - 2.0
+      d_gains:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 1.0
+        - 1.0
+        - 1.0
+        - 0.5
+
+/**:
+  joint_impedance_with_ik_controller:
+    ros__parameters:
+      setpoint_timeout: .inf
+      k_gains:
+        - 600.0
+        - 600.0
+        - 600.0
+        - 600.0
+        - 250.0
+        - 150.0
+        - 50.0
+      d_gains:
+        - 30.0
+        - 30.0
+        - 30.0
+        - 30.0
+        - 10.0
+        - 10.0
+        - 5.0
+
+/**:
+  cartesian_pose_controller:
+    ros__parameters:
+      setpoint_timeout: .inf

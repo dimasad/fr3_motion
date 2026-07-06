@@ -6,11 +6,34 @@
   <description>Controllers and utilities for moving Franka Research 3 robots</description>
   <maintainer email="dimas.dutra@mail.wvu.edu">Dimas Abreu Archanjo Dutra</maintainer>
   <license>MIT</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>controller_interface</depend>
+  <depend>franka_example_controllers</depend>
+  <depend>franka_msgs</depend>
+  <depend>franka_semantic_components</depend>
+  <depend>geometry_msgs</depend>
+  <depend>hardware_interface</depend>
+  <depend>moveit_msgs</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>realtime_tools</depend>
+  <depend>sensor_msgs</depend>
+
+  <exec_depend>franka_bringup</exec_depend>
+  <exec_depend>franka_fr3_moveit_config</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+  <test_depend>controller_manager_msgs</test_depend>
+  <test_depend>launch</test_depend>
+  <test_depend>launch_ros</test_depend>
+  <test_depend>launch_testing</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

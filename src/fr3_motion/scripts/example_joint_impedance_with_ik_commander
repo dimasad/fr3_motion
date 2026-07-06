@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+# Copyright (c) 2026 Dimas Abreu Archanjo Dutra
+#
+# Licensed under the MIT License, see the repository's LICENSE file.
+"""
+Publish the same oscillating end-effector pose setpoint as
+franka_example_controllers' joint_impedance_with_ik_example_controller, on the
+"ee_pose_setpoint" topic, to exercise fr3_motion's joint_impedance_with_ik_controller.
+"""
+
+import math
+import sys
+
+import rclpy
+from rclpy.duration import Duration
+from rclpy.node import Node
+from geometry_msgs.msg import PoseStamped
+
+
+class ExampleJointImpedanceWithIKCommander(Node):
+
+    def __init__(self):
+        super().__init__('example_joint_impedance_with_ik_commander')
+        self.declare_parameter('current_pose_topic',
+                               '/franka_robot_state_broadcaster/current_pose')
+        self.declare_parameter('initial_pose_timeout', 5.0)
+
+        self._publisher = self.create_publisher(PoseStamped, 'ee_pose_setpoint', 10)
+        self._initial_pose = self._capture_initial_pose()
+
+        self._start_time = self.get_clock().now()
+        self.create_timer(0.01, self._publish_setpoint)
+        self.get_logger().info('Publishing end-effector pose setpoints.')
+
+    def _capture_initial_pose(self):
+        topic = self.get_parameter('current_pose_topic').value
+        timeout = self.get_parameter('initial_pose_timeout').value
+        received = {}
+
+        def callback(msg):
+            received['pose'] = msg.pose
+
+        sub = self.create_subscription(PoseStamped, topic, callback, 10)
+        deadline = self.get_clock().now() + Duration(seconds=timeout)
+        while self.get_clock().now() < deadline and 'pose' not in received:
+            rclpy.spin_once(self, timeout_sec=0.1)
+        self.destroy_subscription(sub)
+
+        if 'pose' not in received:
+            self.get_logger().error(
+                f'Timed out waiting for the current end-effector pose on "{topic}" '
+                '(published by franka_robot_state_broadcaster on real hardware). Refusing '
+                'to guess a starting pose.')
+            rclpy.shutdown()
+            sys.exit(1)
+
+        return received['pose']
+
+    def _publish_setpoint(self):
+        t = (self.get_clock().now() - self._start_time).nanoseconds / 1e9
+        radius = 0.1
+        angle = math.pi / 4 * (1 - math.cos(math.pi / 5.0 * t))
+        delta_x = radius * math.sin(angle)
+        delta_z = radius * (math.cos(angle) - 1)
+
+        msg = PoseStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pose.orientation = self._initial_pose.orientation
+        msg.pose.position.x = self._initial_pose.position.x - delta_x
+        msg.pose.position.y = self._initial_pose.position.y
+        msg.pose.position.z = self._initial_pose.position.z - delta_z
+        self._publisher.publish(msg)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = ExampleJointImpedanceWithIKCommander()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
