@@ -14,6 +14,7 @@ import sys
 import rclpy
 from rclpy.duration import Duration
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 from geometry_msgs.msg import PoseStamped
 
 
@@ -40,7 +41,8 @@ class ExampleCartesianPoseCommander(Node):
         def callback(msg):
             received['pose'] = msg.pose
 
-        sub = self.create_subscription(PoseStamped, topic, callback, 10)
+        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        sub = self.create_subscription(PoseStamped, topic, callback, qos)
         deadline = self.get_clock().now() + Duration(seconds=timeout)
         while self.get_clock().now() < deadline and 'pose' not in received:
             rclpy.spin_once(self, timeout_sec=0.1)

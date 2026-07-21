@@ -16,6 +16,11 @@
         manage: false
         print_warnings: false
 
+      franka_robot_state_broadcaster:
+        type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
+        state_interfaces:
+          robot_state
+
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
 
@@ -27,6 +32,13 @@
 
       joint_impedance_with_ik_controller:
         type: fr3_motion/JointImpedanceWithIKController
+
+/**:
+  franka_robot_state_broadcaster:
+    ros__parameters:
+      # Publish rate in Hz for convenience topics (current_pose, joint_states, wrenches, etc.).
+      # Full robot state always publishes at the controller update rate (1kHz).
+      convenience_publish_rate: 1000
 
 /**:
   joint_impedance_controller:
