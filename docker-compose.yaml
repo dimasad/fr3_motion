@@ -2,7 +2,6 @@ services:
   dev:
     image: ghcr.io/dimasad/fr3_motion:latest
     privileged: true
-    restart: no
     network_mode: host
     volumes:
       - .:/workspace
