@@ -13,7 +13,6 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(controller_interface REQUIRED)
-find_package(Franka REQUIRED)
 find_package(franka_example_controllers REQUIRED)
 find_package(franka_msgs REQUIRED)
 find_package(franka_semantic_components REQUIRED)
@@ -31,7 +30,6 @@ add_library(
   fr3_motion_controllers
   SHARED
   src/joint_impedance_controller.cpp
-  src/cartesian_pose_controller.cpp
   src/joint_impedance_with_ik_controller.cpp
 )
 
@@ -41,12 +39,9 @@ target_include_directories(fr3_motion_controllers
     ${EIGEN3_INCLUDE_DIRS}
 )
 
-target_link_libraries(fr3_motion_controllers Franka::Franka)
-
 ament_target_dependencies(
   fr3_motion_controllers
   controller_interface
-  Franka
   franka_example_controllers
   franka_msgs
   franka_semantic_components
@@ -89,7 +84,6 @@ install(DIRECTORY
 # Install the commander example scripts.
 install(PROGRAMS
   scripts/example_joint_impedance_commander
-  scripts/example_cartesian_pose_commander
   scripts/example_joint_impedance_with_ik_commander
   DESTINATION lib/${PROJECT_NAME}
 )

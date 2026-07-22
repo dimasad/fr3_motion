@@ -27,9 +27,6 @@
       joint_impedance_controller:
         type: fr3_motion/JointImpedanceController
 
-      cartesian_pose_controller:
-        type: fr3_motion/CartesianPoseController
-
       joint_impedance_with_ik_controller:
         type: fr3_motion/JointImpedanceWithIKController
 
@@ -81,8 +78,3 @@
         - 10.0
         - 10.0
         - 5.0
-
-/**:
-  cartesian_pose_controller:
-    ros__parameters:
-      setpoint_timeout: .inf

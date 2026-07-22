@@ -8,8 +8,6 @@ under the Apache License, Version 2.0:
 
   include/fr3_motion/joint_impedance_controller.hpp
   src/joint_impedance_controller.cpp
-  include/fr3_motion/cartesian_pose_controller.hpp
-  src/cartesian_pose_controller.cpp
   include/fr3_motion/joint_impedance_with_ik_controller.hpp
   src/joint_impedance_with_ik_controller.cpp
 
