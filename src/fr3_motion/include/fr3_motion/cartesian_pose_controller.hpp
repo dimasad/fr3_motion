@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <array>
 #include <memory>
 #include <string>
 
@@ -77,6 +78,25 @@ class CartesianPoseController : public controller_interface::ControllerInterface
   rclcpp::Time latest_setpoint_stamp_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr ee_pose_setpoint_sub_;
   void setpointCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+
+  // Cartesian pose commands go through libfranka's motion generator, which requires the
+  // commanded pose to be continuous every 1 kHz control cycle (bounded velocity, acceleration
+  // and jerk). Setpoints arriving from "ee_pose_setpoint" are not guaranteed to satisfy that on
+  // their own (e.g. a lower-rate publisher holds a pose for several cycles, then jumps), so
+  // every commanded pose is passed through franka::limitRate before being sent to the hardware.
+  // last_pose_command_/last_twist_command_/last_acceleration_command_ hold the rate limiter's
+  // own state across cycles, the same way dq_filtered_ persists across cycles in
+  // JointImpedanceController.
+  double max_translational_velocity_{};
+  double max_translational_acceleration_{};
+  double max_translational_jerk_{};
+  double max_rotational_velocity_{};
+  double max_rotational_acceleration_{};
+  double max_rotational_jerk_{};
+
+  std::array<double, 16> last_pose_command_{};
+  std::array<double, 6> last_twist_command_{};
+  std::array<double, 6> last_acceleration_command_{};
 };
 
 }  // namespace fr3_motion

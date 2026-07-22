@@ -21,8 +21,10 @@
 #include <fr3_motion/cartesian_pose_controller.hpp>
 #include <fr3_motion/setpoint_utils.hpp>
 
+#include <franka/rate_limiting.h>
 #include <franka_example_controllers/default_robot_behavior_utils.hpp>
 
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <exception>
@@ -30,6 +32,46 @@
 #include <string>
 
 namespace fr3_motion {
+
+namespace {
+
+// Converts an orientation/translation pair into libfranka's column-major 4x4 homogeneous
+// transform representation (O_T_EE format), as used by franka::limitRate and the
+// "cartesian_pose_command" hardware interface.
+std::array<double, 16> toPoseArray(const Eigen::Quaterniond& orientation,
+                                   const Eigen::Vector3d& translation) {
+  Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
+  transform.topLeftCorner<3, 3>() = orientation.normalized().toRotationMatrix();
+  transform.topRightCorner<3, 1>() = translation;
+
+  std::array<double, 16> pose_array{};
+  Eigen::Map<Eigen::Matrix4d>(pose_array.data()) = transform;
+  return pose_array;
+}
+
+// Finite-differences two consecutive commanded poses into a Cartesian twist (O_dP_EE format:
+// linear velocity followed by angular velocity, both expressed in the base frame), needed to
+// track franka::limitRate's rate-limiter state across control cycles.
+std::array<double, 6> computeTwist(const std::array<double, 16>& pose,
+                                   const std::array<double, 16>& last_pose,
+                                   double dt) {
+  const Eigen::Map<const Eigen::Matrix4d> transform(pose.data());
+  const Eigen::Map<const Eigen::Matrix4d> last_transform(last_pose.data());
+
+  const Eigen::Vector3d linear_velocity =
+      (transform.topRightCorner<3, 1>() - last_transform.topRightCorner<3, 1>()) / dt;
+  const Eigen::Matrix3d relative_rotation =
+      transform.topLeftCorner<3, 3>() * last_transform.topLeftCorner<3, 3>().transpose();
+  const Eigen::AngleAxisd angle_axis(relative_rotation);
+  const Eigen::Vector3d angular_velocity = angle_axis.axis() * angle_axis.angle() / dt;
+
+  std::array<double, 6> twist{};
+  Eigen::Map<Eigen::Vector3d>(twist.data()) = linear_velocity;
+  Eigen::Map<Eigen::Vector3d>(twist.data() + 3) = angular_velocity;
+  return twist;
+}
+
+}  // namespace
 
 controller_interface::InterfaceConfiguration
 CartesianPoseController::command_interface_configuration() const {
@@ -58,6 +100,10 @@ controller_interface::return_type CartesianPoseController::update(
     std::tie(orientation_setpoint_, position_setpoint_) =
         franka_cartesian_pose_->getCurrentOrientationAndTranslation();
     setpoint_buffer_.writeFromNonRT(Setpoint{position_setpoint_, orientation_setpoint_});
+
+    last_pose_command_ = toPoseArray(orientation_setpoint_, position_setpoint_);
+    last_twist_command_.fill(0.0);
+    last_acceleration_command_.fill(0.0);
     initialization_flag_ = false;
   }
 
@@ -65,7 +111,25 @@ controller_interface::return_type CartesianPoseController::update(
   position_setpoint_ = setpoint.position;
   orientation_setpoint_ = setpoint.orientation;
 
-  if (franka_cartesian_pose_->setCommand(orientation_setpoint_, position_setpoint_)) {
+  // Setpoints received on "ee_pose_setpoint" are not guaranteed to be continuous at libfranka's
+  // 1 kHz control rate (e.g. a lower-rate publisher holds a pose for several cycles then jumps),
+  // which the Cartesian pose motion generator rejects. Rate-limit the commanded pose so it
+  // always respects the configured velocity/acceleration/jerk bounds, regardless of how the
+  // setpoint arrives.
+  const auto target_pose = toPoseArray(orientation_setpoint_, position_setpoint_);
+  const auto limited_pose = franka::limitRate(
+      max_translational_velocity_, max_translational_acceleration_, max_translational_jerk_,
+      max_rotational_velocity_, max_rotational_acceleration_, max_rotational_jerk_, target_pose,
+      last_pose_command_, last_twist_command_, last_acceleration_command_);
+
+  const auto limited_twist = computeTwist(limited_pose, last_pose_command_, franka::kDeltaT);
+  for (std::size_t i = 0; i < last_acceleration_command_.size(); ++i) {
+    last_acceleration_command_[i] = (limited_twist[i] - last_twist_command_[i]) / franka::kDeltaT;
+  }
+  last_twist_command_ = limited_twist;
+  last_pose_command_ = limited_pose;
+
+  if (franka_cartesian_pose_->setCommand(limited_pose)) {
     return controller_interface::return_type::OK;
   } else {
     RCLCPP_FATAL(get_node()->get_logger(),
@@ -77,12 +141,29 @@ controller_interface::return_type CartesianPoseController::update(
 CallbackReturn CartesianPoseController::on_init() {
   auto_declare<std::string>("arm_prefix", "");
   auto_declare<double>("setpoint_timeout", std::numeric_limits<double>::infinity());
+
+  // Default to libfranka's own Cartesian motion generator limits, so the rate limiter only
+  // clips what the robot would reject anyway.
+  auto_declare<double>("max_translational_velocity", franka::kMaxTranslationalVelocity);
+  auto_declare<double>("max_translational_acceleration", franka::kMaxTranslationalAcceleration);
+  auto_declare<double>("max_translational_jerk", franka::kMaxTranslationalJerk);
+  auto_declare<double>("max_rotational_velocity", franka::kMaxRotationalVelocity);
+  auto_declare<double>("max_rotational_acceleration", franka::kMaxRotationalAcceleration);
+  auto_declare<double>("max_rotational_jerk", franka::kMaxRotationalJerk);
   return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn CartesianPoseController::on_configure(
     const rclcpp_lifecycle::State& /*previous_state*/) {
   arm_prefix_ = get_node()->get_parameter("arm_prefix").as_string();
+  max_translational_velocity_ = get_node()->get_parameter("max_translational_velocity").as_double();
+  max_translational_acceleration_ =
+      get_node()->get_parameter("max_translational_acceleration").as_double();
+  max_translational_jerk_ = get_node()->get_parameter("max_translational_jerk").as_double();
+  max_rotational_velocity_ = get_node()->get_parameter("max_rotational_velocity").as_double();
+  max_rotational_acceleration_ =
+      get_node()->get_parameter("max_rotational_acceleration").as_double();
+  max_rotational_jerk_ = get_node()->get_parameter("max_rotational_jerk").as_double();
   arm_prefix_ = arm_prefix_.empty() ? "" : arm_prefix_ + "_";
   franka_cartesian_pose_ =
       std::make_unique<franka_semantic_components::FrankaCartesianPoseInterface>(

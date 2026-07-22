@@ -13,6 +13,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(controller_interface REQUIRED)
+find_package(Franka REQUIRED)
 find_package(franka_example_controllers REQUIRED)
 find_package(franka_msgs REQUIRED)
 find_package(franka_semantic_components REQUIRED)
@@ -40,9 +41,12 @@ target_include_directories(fr3_motion_controllers
     ${EIGEN3_INCLUDE_DIRS}
 )
 
+target_link_libraries(fr3_motion_controllers Franka::Franka)
+
 ament_target_dependencies(
   fr3_motion_controllers
   controller_interface
+  Franka
   franka_example_controllers
   franka_msgs
   franka_semantic_components
